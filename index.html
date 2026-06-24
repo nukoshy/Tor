@@ -19,9 +19,13 @@
           <!-- HEADER -->
           <header class="topbar">
             <div class="logo">TÖR</div>
+            <div class="lang-toggle" id="langToggle" role="group" aria-label="Язык / Тіл">
+              <button class="lang-btn" data-lang="ru" aria-selected="true">RU</button>
+              <button class="lang-btn" data-lang="kz" aria-selected="false">KZ</button>
+            </div>
           </header>
 
-          <div class="eyebrow">Бюджет на одного гостя</div>
+          <div class="eyebrow" data-i18n="budget">Бюджет на одного гостя</div>
 
           <!-- SEGMENTED TABS -->
           <div class="tabs" id="tabs" role="tablist" aria-label="Бюджет на одного гостя">
@@ -32,7 +36,7 @@
 
           <!-- GUEST STEPPER -->
           <div class="stepper">
-            <div class="eyebrow plain">Количество гостей</div>
+            <div class="eyebrow plain" data-i18n="guestsLabel">Количество гостей</div>
             <div class="stepper-ctrl">
               <button class="round" id="dec" aria-label="Меньше гостей">−</button>
               <div class="guests" id="guests">10</div>
@@ -48,7 +52,7 @@
         <!-- FOOTER -->
         <footer class="cta-wrap">
           <a class="cta" id="cta" href="#" target="_blank" rel="noopener">
-            <span>Забронировать в WhatsApp</span>
+            <span data-i18n="cta">Забронировать в WhatsApp</span>
           </a>
         </footer>
       </div>

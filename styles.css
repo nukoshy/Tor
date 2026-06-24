@@ -106,6 +106,34 @@ body {
   color: var(--accent);
 }
 
+/* Language toggle */
+.lang-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--tabs-bg);
+  border-radius: 9px;
+  padding: 3px;
+}
+.lang-btn {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--muted-2);
+  padding: 5px 9px;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .2s ease, color .2s ease;
+}
+.lang-btn[aria-selected="true"] {
+  background: var(--accent);
+  color: var(--screen);
+}
+
 /* ---------- Eyebrow labels ---------- */
 
 .eyebrow {
@@ -393,8 +421,8 @@ body {
 .cta-wrap {
   position: sticky;
   bottom: 0;
-  padding: 18px 24px calc(26px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--screen) 70%, rgba(246,241,232,0));
+  padding: 18px 24px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--screen) 72%, rgba(246,241,232,0));
 }
 .cta {
   display: flex;

@@ -8,7 +8,7 @@
   "use strict";
 
   // ----- Config -----
-  var WHATSAPP_PHONE = "77000000000"; // TODO: replace with the real booking number (digits only, incl. country code)
+  var WHATSAPP_PHONE = "77782903334"; // booking number, digits only (incl. country code)
 
   // ----- Data (verbatim from the design source) -----
   // Ordered high → low, matching the original rawPackages().
@@ -96,6 +96,89 @@
     finish: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h12v5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/><path d="M8 3v2M11 3v2"/></svg>',
   };
 
+  // ----- Localization -----
+  // UI strings per language. Menu content is translated via KZ_DICT below.
+  var I18N = {
+    ru: {
+      budget: "Бюджет на одного гостя",
+      guestsLabel: "Количество гостей",
+      cta: "Забронировать в WhatsApp",
+      menuNote: "Состав меняется в зависимости от бюджета",
+      setBadge: "сет",
+      menuFor: function (p) { return "Меню для " + p + " ₸"; },
+      guestWord: function (n) { return plural(n, "гость", "гостя", "гостей"); },
+      sub: function (g, word, p) { return "за " + g + " " + word + " · " + p + " ₸ на гостя"; },
+      msgHead: "Здравствуйте! Хочу забронировать банкет TÖR.",
+      msgPkg: function (p) { return "Пакет: " + p + " ₸ на гостя"; },
+      msgGuests: function (g) { return "Гостей: " + g; },
+      msgTotal: function (t) { return "Итого: " + t + " ₸"; },
+      msgMenu: "Меню:",
+    },
+    kz: {
+      budget: "Бір қонаққа бюджет",
+      guestsLabel: "Қонақтар саны",
+      cta: "WhatsApp арқылы брондау",
+      menuNote: "Құрамы бюджетке байланысты өзгереді",
+      setBadge: "сет",
+      menuFor: function (p) { return p + " ₸ мәзірі"; },
+      guestWord: function () { return "қонақ"; }, // Kazakh nouns aren't pluralized after numerals
+      sub: function (g, word, p) { return g + " " + word + " · қонағына " + p + " ₸"; },
+      msgHead: "Сәлеметсіз бе! TÖR банкетіне брондама жасағым келеді.",
+      msgPkg: function (p) { return "Пакет: қонағына " + p + " ₸"; },
+      msgGuests: function (g) { return "Қонақтар: " + g; },
+      msgTotal: function (t) { return "Барлығы: " + t + " ₸"; },
+      msgMenu: "Мәзір:",
+    },
+  };
+
+  // Russian → Kazakh for all menu content (titles, dish names, notes, set items).
+  // Unmapped strings fall back to the Russian original.
+  var KZ_DICT = {
+    // section titles
+    "Закуски и нарезки": "Тіскебасар мен турамалар",
+    "Салаты": "Салаттар",
+    "Горячее": "Ыстық тағамдар",
+    "Завершение": "Аяқтау",
+    // dishes
+    "Хлебная корзина": "Нан себеті",
+    "Национальное ассорти": "Ұлттық ассорти",
+    "Рыбная нарезка": "Балық турамасы",
+    "Куриный рулет и глазированные крылья": "Тауық рулеті мен глазурленген қанаттар",
+    "Свежие овощи с сыром и зеленью": "Ірімшік пен көкпен балғын көкөністер",
+    "Свежие овощи с сыром": "Ірімшікпен балғын көкөністер",
+    "Самса с мясом": "Етті самса",
+    "Сырная тарелка": "Ірімшік тәрелкесі",
+    "Цезарь с курицей": "Тауықпен Цезарь",
+    "Тёплый салат": "Жылы салат",
+    "Тёплый салат с говядиной": "Сиыр етімен жылы салат",
+    "Хрустящие баклажаны": "Қытырлақ баялды",
+    "Руккола с креветками и спелым персиком": "Шаян мен піскен шабдалымен руккола",
+    "Рыба гриль": "Гриль балық",
+    "Мясной сет": "Ет сеті",
+    "Куриная голень и крылья": "Тауық сирағы мен қанаттары",
+    "Судак в кляре и куриные стрипсы": "Кляр ішіндегі көксерке мен тауық стрипсы",
+    "Чебуреки с соусом": "Тұздықпен шебурек",
+    "Фруктовая нарезка": "Жеміс турамасы",
+    // notes
+    "казы · тіл": "қазы · тіл",
+    "красная рыба · скумбрия · белая рыба": "қызыл балық · скумбрия · ақ балық",
+    // set items
+    "Сёмга": "Сёмга",
+    "Скумбрия": "Скумбрия",
+    "Судак": "Көксерке",
+    "Брокколи и цветная капуста": "Брокколи мен түсті қырыққабат",
+    "Соус": "Тұздық",
+    "Баранина": "Қой еті",
+    "Куриная голень гриль": "Гриль тауық сирағы",
+    "Утка гриль": "Гриль үйрек",
+    "Индейка гриль": "Гриль күркетауық",
+  };
+
+  function tr(s) {
+    if (state.lang === "kz") return KZ_DICT[s] || s;
+    return s;
+  }
+
   // ----- Helpers -----
   function plural(n, one, few, many) {
     var m10 = n % 10, m100 = n % 100;
@@ -136,7 +219,7 @@
   }
 
   // ----- State -----
-  var state = { tab: 2, guests: 10 };
+  var state = { tab: 2, guests: 10, lang: "ru" };
 
   // ----- Element refs -----
   var screen = document.getElementById("screen");
@@ -145,16 +228,18 @@
   var guestsEl = document.getElementById("guests");
   var bodyEl = document.getElementById("body");
   var ctaEl = document.getElementById("cta");
+  var langBtns = Array.prototype.slice.call(document.querySelectorAll(".lang-btn"));
 
   var thread = { wrap: null, fill: null, nodes: [], reached: null, scroller: null };
 
   // ----- Rendering -----
   function renderBody(animate) {
+    var L = I18N[state.lang];
     var pkg = buildPackage(state.tab);
     var guests = clampGuests(state.guests);
     var tierNum = parseInt(pkg.priceNum.replace(/\D/g, ""), 10) || 0;
     var total = fmt(tierNum * guests);
-    var gWord = plural(guests, "гость", "гостя", "гостей");
+    var gWord = L.guestWord(guests);
 
     var frag = document.createDocumentFragment();
 
@@ -163,12 +248,11 @@
     priceRow.appendChild(el("div", "price-cur", "₸"));
     frag.appendChild(priceRow);
 
-    frag.appendChild(el("div", "price-sub",
-      "за " + guests + " " + gWord + " · " + esc(pkg.priceNum) + " ₸ на гостя"));
+    frag.appendChild(el("div", "price-sub", esc(L.sub(guests, gWord, pkg.priceNum))));
 
     frag.appendChild(el("div", "divider"));
-    frag.appendChild(el("div", "eyebrow accent", "Меню для " + esc(pkg.priceNum) + " ₸"));
-    frag.appendChild(el("div", "menu-note", "Состав меняется в зависимости от бюджета"));
+    frag.appendChild(el("div", "eyebrow accent", esc(L.menuFor(pkg.priceNum))));
+    frag.appendChild(el("div", "menu-note", esc(L.menuNote)));
 
     // Connected timeline
     var wrap = el("div", "thread-wrap");
@@ -185,7 +269,7 @@
 
       var card = el("div", "card");
       var head = el("div", "card-head");
-      head.appendChild(el("div", "card-title", esc(sec.title)));
+      head.appendChild(el("div", "card-title", esc(tr(sec.title))));
       head.appendChild(el("div", "card-icon", ICONS[sec.icon] || ""));
       card.appendChild(head);
 
@@ -194,19 +278,19 @@
         if (dish.set) {
           var box = el("div", "set");
           var sh = el("div", "set-head");
-          sh.appendChild(el("div", "set-name", esc(dish.name)));
-          sh.appendChild(el("div", "set-badge", "сет"));
+          sh.appendChild(el("div", "set-name", esc(tr(dish.name))));
+          sh.appendChild(el("div", "set-badge", esc(I18N[state.lang].setBadge)));
           box.appendChild(sh);
           (dish.items || []).forEach(function (it) {
             var row = el("div", "set-item");
             row.appendChild(el("div", "set-dot"));
-            row.appendChild(el("div", "set-text", esc(it)));
+            row.appendChild(el("div", "set-text", esc(tr(it))));
             box.appendChild(row);
           });
           d.appendChild(box);
         } else {
-          d.appendChild(el("div", "dish-name", esc(dish.name)));
-          if (dish.note) d.appendChild(el("div", "dish-note", esc(dish.note)));
+          d.appendChild(el("div", "dish-name", esc(tr(dish.name))));
+          if (dish.note) d.appendChild(el("div", "dish-note", esc(tr(dish.note))));
         }
         card.appendChild(d);
       });
@@ -240,28 +324,42 @@
 
   // Update only the guest-dependent numbers (no re-render, no animation replay)
   function updateTotals() {
+    var L = I18N[state.lang];
     var pkg = buildPackage(state.tab);
     var guests = clampGuests(state.guests);
     var tierNum = parseInt(pkg.priceNum.replace(/\D/g, ""), 10) || 0;
     var total = fmt(tierNum * guests);
-    var gWord = plural(guests, "гость", "гостя", "гостей");
+    var gWord = L.guestWord(guests);
 
     guestsEl.textContent = String(guests);
     var totalEl = bodyEl.querySelector(".price-total");
     var subEl = bodyEl.querySelector(".price-sub");
     if (totalEl) totalEl.textContent = total;
-    if (subEl) subEl.textContent =
-      "за " + guests + " " + gWord + " · " + pkg.priceNum + " ₸ на гостя";
+    if (subEl) subEl.textContent = L.sub(guests, gWord, pkg.priceNum);
 
     updateCTA(pkg, guests, total);
   }
 
+  // Build a WhatsApp message reflecting the currently selected menu + language.
+  function buildMessage(pkg, guests, total) {
+    var L = I18N[state.lang];
+    var lines = [L.msgHead, L.msgPkg(pkg.priceNum), L.msgGuests(guests), L.msgTotal(total), "", L.msgMenu];
+    pkg.sections.forEach(function (sec) {
+      lines.push("");
+      lines.push(tr(sec.title) + ":");
+      sec.dishes.forEach(function (dish) {
+        if (dish.set) {
+          lines.push("— " + tr(dish.name) + " (" + L.setBadge + "): " + (dish.items || []).map(tr).join(", "));
+        } else {
+          lines.push("— " + tr(dish.name) + (dish.note ? " (" + tr(dish.note) + ")" : ""));
+        }
+      });
+    });
+    return lines.join("\n");
+  }
+
   function updateCTA(pkg, guests, total) {
-    var msg = "Здравствуйте! Хочу забронировать банкет TÖR.\n" +
-      "Пакет: " + pkg.priceNum + " ₸ на гостя\n" +
-      "Гостей: " + guests + "\n" +
-      "Итого: " + total + " ₸";
-    ctaEl.href = "https://wa.me/" + WHATSAPP_PHONE + "?text=" + encodeURIComponent(msg);
+    ctaEl.href = "https://wa.me/" + WHATSAPP_PHONE + "?text=" + encodeURIComponent(buildMessage(pkg, guests, total));
   }
 
   function setTabsUI() {
@@ -269,6 +367,19 @@
       var t = parseInt(btn.getAttribute("data-tab"), 10);
       btn.setAttribute("aria-selected", t === state.tab ? "true" : "false");
     });
+  }
+
+  // Apply language to all static (non-body) UI strings + toggle state.
+  function applyStaticI18n() {
+    var L = I18N[state.lang];
+    document.querySelectorAll("[data-i18n]").forEach(function (node) {
+      var key = node.getAttribute("data-i18n");
+      if (typeof L[key] === "string") node.textContent = L[key];
+    });
+    langBtns.forEach(function (b) {
+      b.setAttribute("aria-selected", b.getAttribute("data-lang") === state.lang ? "true" : "false");
+    });
+    document.documentElement.lang = state.lang === "kz" ? "kk" : "ru";
   }
 
   function clampGuests(g) {
@@ -348,6 +459,16 @@
     });
   });
 
+  langBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var l = btn.getAttribute("data-lang");
+      if (l === state.lang) return;
+      state.lang = l;
+      applyStaticI18n();
+      renderBody(false); // re-translate menu; no fadeUp replay on a language switch
+    });
+  });
+
   document.getElementById("inc").addEventListener("click", function () {
     state.guests = clampGuests(state.guests + 1);
     updateTotals();
@@ -364,6 +485,7 @@
   });
 
   // ----- Init -----
+  applyStaticI18n();
   setTabsUI();
   guestsEl.textContent = String(clampGuests(state.guests));
   renderBody(false);
