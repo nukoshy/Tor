@@ -108,11 +108,11 @@
       menuFor: function (p) { return "Меню для " + p + " ₸"; },
       guestWord: function (n) { return plural(n, "гость", "гостя", "гостей"); },
       sub: function (g, word, p) { return "за " + g + " " + word + " · " + p + " ₸ на гостя"; },
-      msgHead: "Здравствуйте! Хочу забронировать банкет TÖR.",
-      msgPkg: function (p) { return "Пакет: " + p + " ₸ на гостя"; },
-      msgGuests: function (g) { return "Гостей: " + g; },
-      msgTotal: function (t) { return "Итого: " + t + " ₸"; },
-      msgMenu: "Меню:",
+      book: function (persons, price, total) {
+        var w = plural(persons, "персону", "персоны", "персон");
+        return "Здравствуйте! Хочу забронировать стол на " + persons + " " + w +
+          " по " + price + " ₸ на гостя (итого " + total + " ₸).";
+      },
     },
     kz: {
       budget: "Бір қонаққа бюджет",
@@ -123,11 +123,10 @@
       menuFor: function (p) { return p + " ₸ мәзірі"; },
       guestWord: function () { return "қонақ"; }, // Kazakh nouns aren't pluralized after numerals
       sub: function (g, word, p) { return g + " " + word + " · қонағына " + p + " ₸"; },
-      msgHead: "Сәлеметсіз бе! TÖR банкетіне брондама жасағым келеді.",
-      msgPkg: function (p) { return "Пакет: қонағына " + p + " ₸"; },
-      msgGuests: function (g) { return "Қонақтар: " + g; },
-      msgTotal: function (t) { return "Барлығы: " + t + " ₸"; },
-      msgMenu: "Мәзір:",
+      book: function (persons, price, total) {
+        return "Сәлеметсіз бе! " + persons + " адамға үстел брондағым келеді. " +
+          "Пакет: қонағына " + price + " ₸, барлығы " + total + " ₸.";
+      },
     },
   };
 
@@ -340,22 +339,9 @@
     updateCTA(pkg, guests, total);
   }
 
-  // Build a WhatsApp message reflecting the currently selected menu + language.
+  // Short, human WhatsApp message based on the current selection + language.
   function buildMessage(pkg, guests, total) {
-    var L = I18N[state.lang];
-    var lines = [L.msgHead, L.msgPkg(pkg.priceNum), L.msgGuests(guests), L.msgTotal(total), "", L.msgMenu];
-    pkg.sections.forEach(function (sec) {
-      lines.push("");
-      lines.push(tr(sec.title) + ":");
-      sec.dishes.forEach(function (dish) {
-        if (dish.set) {
-          lines.push("— " + tr(dish.name) + " (" + L.setBadge + "): " + (dish.items || []).map(tr).join(", "));
-        } else {
-          lines.push("— " + tr(dish.name) + (dish.note ? " (" + tr(dish.note) + ")" : ""));
-        }
-      });
-    });
-    return lines.join("\n");
+    return I18N[state.lang].book(guests, pkg.priceNum, total);
   }
 
   function updateCTA(pkg, guests, total) {
