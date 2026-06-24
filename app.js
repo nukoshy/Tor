@@ -300,23 +300,12 @@
 
       sec.dishes.forEach(function (dish) {
         var d = el("div", "dish");
-        if (dish.set) {
-          var box = el("div", "set");
-          var sh = el("div", "set-head");
-          sh.appendChild(el("div", "set-name", esc(tr(dish.name))));
-          sh.appendChild(el("div", "set-badge", esc(I18N[state.lang].setBadge)));
-          box.appendChild(sh);
-          (dish.items || []).forEach(function (it) {
-            var row = el("div", "set-item");
-            row.appendChild(el("div", "set-dot"));
-            row.appendChild(el("div", "set-text", esc(tr(it))));
-            box.appendChild(row);
-          });
-          d.appendChild(box);
-        } else {
-          d.appendChild(el("div", "dish-name", esc(tr(dish.name))));
-          if (dish.note) d.appendChild(el("div", "dish-note", esc(tr(dish.note))));
-        }
+        d.appendChild(el("div", "dish-name", esc(tr(dish.name))));
+        // Sets render like regular dishes: components listed underneath as a note.
+        var note = dish.set
+          ? (dish.items || []).map(function (it) { return tr(it); }).join(" · ")
+          : (dish.note ? tr(dish.note) : "");
+        if (note) d.appendChild(el("div", "dish-note", esc(note)));
         card.appendChild(d);
       });
 
