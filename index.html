@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TÖR · Меню банкетных пакетов</title>
+  <meta name="theme-color" content="#dcd6cb">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="canvas">
+    <div class="phone">
+      <div class="screen" id="screen">
+        <div class="pad">
+
+          <!-- HEADER -->
+          <header class="topbar">
+            <div class="logo">TÖR</div>
+          </header>
+
+          <div class="eyebrow">Бюджет на одного гостя</div>
+
+          <!-- SEGMENTED TABS -->
+          <div class="tabs" id="tabs" role="tablist" aria-label="Бюджет на одного гостя">
+            <button class="tab" role="tab" data-tab="0"><span>15 000</span></button>
+            <button class="tab" role="tab" data-tab="1"><span>20 000</span></button>
+            <button class="tab" role="tab" data-tab="2"><span>25 000</span></button>
+          </div>
+
+          <!-- GUEST STEPPER -->
+          <div class="stepper">
+            <div class="eyebrow plain">Количество гостей</div>
+            <div class="stepper-ctrl">
+              <button class="round" id="dec" aria-label="Меньше гостей">−</button>
+              <div class="guests" id="guests">10</div>
+              <button class="round" id="inc" aria-label="Больше гостей">+</button>
+            </div>
+          </div>
+
+          <!-- ANIMATED BODY (filled by app.js) -->
+          <div class="body" id="body"></div>
+
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="cta-wrap">
+          <a class="cta" id="cta" href="#" target="_blank" rel="noopener">
+            <span>Забронировать в WhatsApp</span>
+          </a>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
