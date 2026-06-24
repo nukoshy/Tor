@@ -29,6 +29,8 @@ html, body {
 body {
   font-family: 'Manrope', system-ui, sans-serif;
   background: var(--canvas);
+  /* disable double-tap-to-zoom (rapid taps on the stepper) while keeping pinch-zoom */
+  touch-action: manipulation;
 }
 
 @keyframes fadeUp {
@@ -214,6 +216,7 @@ body {
   justify-content: center;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   transition: transform .12s ease, background .2s ease;
 }
 .round:active { transform: scale(.9); background: rgba(122,35,43,.06); }
