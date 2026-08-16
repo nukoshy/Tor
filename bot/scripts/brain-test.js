@@ -102,6 +102,17 @@ const CHAT = "77009990000@c.us";
   check("казахский транслит → kk", detectLang("salemetsiz be, toi jasaimyz 80 adam, kansha turady?") === "kk");
   check("русский транслит → ru", detectLang("privet skolko stoit banket") === "ru");
   check("«toilet» не срабатывает как toi", detectLang("where is the toilet") === null);
+  check("«ассаламалейкум» кириллицей → kk", detectLang("Ассаламалейкум") === "kk");
+  check("транслит qyz uzatu → kk", detectLang("kyz uzatuga zal kerek, 50 adam") === "kk");
+  check("транслит tusaukeser → kk", detectLang("tusaukeser otkizemiz") === "kk");
+  check("транслит keshke/jazyl → kk", detectLang("karaokege jazylgym kelet, keshke") === "kk");
+  check("транслит assalam/rahmet → kk", detectLang("assalamaleikum, rahmet") === "kk");
+  check("транслит qonaq → kk", detectLang("60 konak bolady") === "kk");
+  check("транслит zdraste → ru", detectLang("zdraste, mesta est?") === "ru");
+  check("транслит chelovek/zavtra → ru", detectLang("banket zavtra na 30 chelovek") === "ru");
+  check("транслит dobryi vecher → ru", detectLang("dobryi vecher") === "ru");
+  check("«adamant» не срабатывает как adam", detectLang("adamant plan ok") === null);
+  check("смешанное сообщение с русской рамкой → ru", detectLang("Здравствуйте, той жасаймыз на 60 человек, сколько выйдет?") === "ru");
 
   console.log("Санитайзер WhatsApp");
   check("**жирный** → *жирный*", sanitizeWhatsApp("У нас **Неке сарайы** свободен") === "У нас *Неке сарайы* свободен");
