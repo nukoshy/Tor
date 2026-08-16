@@ -1,5 +1,9 @@
 # TÖR — Меню банкетных пакетов (V3, карточки)
 
+> В [`bot/`](bot/README.md) живёт AI-администратор TÖR — WhatsApp-бот, который отвечает
+> клиентам на казахском и русском и принимает заявки на бронь. Меню он берёт отсюда
+> (`bot: npm run sync-menu` после правок меню в `app.js`).
+
 Mobile menu for the TÖR banquet packages. A faithful static port of the
 Claude Design preview **«Меню - пакеты V3 - карточки»**
 ([project](https://claude.ai/design/p/7cc5fc73-10ed-4ca0-b211-6b128bcee5b7)).

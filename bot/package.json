@@ -1,0 +1,17 @@
+{
+  "name": "tor-whatsapp-bot",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI-администратор TÖR — WhatsApp-бот банкетного зала (Зайсан)",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/index.js",
+    "chat": "node scripts/chat.js",
+    "sync-menu": "node scripts/sync-menu.js",
+    "bakeoff": "node scripts/bakeoff.js",
+    "test": "node scripts/brain-test.js && node scripts/e2e-test.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

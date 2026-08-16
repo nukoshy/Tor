@@ -1,0 +1,129 @@
+// Вебхук WAHA + логика «сначала человек, потом бот»:
+// клиентское сообщение ждёт REPLY_DELAY_MS; если менеджер уже ответил с телефона — бот молчит.
+const express = require("express");
+const cfg = require("./config");
+const store = require("./store");
+const waha = require("./waha");
+const { respond } = require("./brain");
+const { transcribe } = require("./stt");
+
+const app = express();
+app.use(express.json({ limit: "25mb" }));
+
+const timers = new Map(); // chatId → таймер отложенного ответа
+const seenIds = new Set(); // дедуп: одно сообщение приходит и как `message`, и как `message.any`
+
+const alert = (text) =>
+  waha.sendText(`${cfg.alertPhone}@c.us`, text).catch((e) => console.error("alert failed:", e.message));
+
+app.get("/health", (_req, res) => res.json({ ok: true }));
+
+app.post("/webhook", (req, res) => {
+  res.json({ ok: true }); // отвечаем WAHA сразу, обрабатываем асинхронно
+  handleEvent(req.body).catch((e) => console.error("webhook error:", e));
+});
+
+async function handleEvent(ev) {
+  if (!ev || !ev.payload || !["message", "message.any"].includes(ev.event)) return;
+  const p = ev.payload;
+  const chatId = p.fromMe ? p.to : p.from;
+  if (!chatId || !chatId.endsWith("@c.us")) return; // группы, статусы, каналы — не наше
+  const msgId = p.id?._serialized || (typeof p.id === "string" ? p.id : null);
+  if (msgId) {
+    if (seenIds.has(msgId)) return;
+    seenIds.add(msgId);
+    if (seenIds.size > 2000) {
+      const it = seenIds.values();
+      for (let i = 0; i < 500; i++) seenIds.delete(it.next().value);
+    }
+  }
+  if (p.fromMe) return onOutgoing(chatId, p);
+  return onClient(chatId, p);
+}
+
+// Исходящее с нашего номера: либо эхо бота, либо живой менеджер пишет с телефона
+function onOutgoing(chatId, p) {
+  const id = p.id?._serialized || p.id;
+  if (store.isBotEcho(id, p.body)) return;
+  const c = store.chat(chatId);
+  c.humanUntil = Date.now() + cfg.humanCooldownMin * 60000;
+  store.pushMsg(chatId, "assistant", `[менеджер]: ${p.body || "(медиа)"}`);
+  const t = timers.get(chatId);
+  if (t) {
+    clearTimeout(t);
+    timers.delete(chatId);
+  }
+  console.log(`[${chatId}] менеджер в чате — бот молчит ${cfg.humanCooldownMin} мин`);
+}
+
+async function onClient(chatId, p) {
+  let text = p.body || "";
+  const mimetype = p.media?.mimetype || "";
+  const isVoice = p.hasMedia && (/audio|ogg/.test(mimetype) || p.type === "ptt" || p.type === "audio");
+
+  if (isVoice) {
+    try {
+      const buf = await waha.downloadMedia(p.media.url);
+      const tr = await transcribe(buf);
+      text = tr ? `[голосовое сообщение]: ${tr}` : "[голосовое сообщение — распознать не удалось, вежливо попроси написать текстом]";
+    } catch (e) {
+      console.error("stt failed:", e.message);
+      text = "[голосовое сообщение — распознать не удалось, вежливо попроси написать текстом]";
+    }
+  } else if (p.hasMedia) {
+    text = `[клиент прислал файл: ${mimetype || "медиа"}] ${text}`.trim();
+  }
+
+  if (!text) return;
+  store.pushMsg(chatId, "user", text);
+
+  const c = store.chat(chatId);
+  if (Date.now() < c.humanUntil) return; // в этом чате сейчас работает человек
+
+  scheduleReply(chatId);
+}
+
+function scheduleReply(chatId) {
+  const old = timers.get(chatId);
+  if (old) clearTimeout(old); // новые сообщения сдвигают таймер — ответим один раз на всё
+  timers.set(
+    chatId,
+    setTimeout(() => {
+      timers.delete(chatId);
+      reply(chatId).catch((e) => console.error(`reply ${chatId}:`, e.message));
+    }, cfg.replyDelayMs)
+  );
+}
+
+async function reply(chatId) {
+  const c = store.chat(chatId);
+  if (Date.now() < c.humanUntil) return; // менеджер успел вмешаться
+  await waha.sendSeen(chatId);
+  await waha.startTyping(chatId);
+  try {
+    const text = await respond(chatId, c.history, { alert });
+    if (!text) return;
+    if (Date.now() < c.humanUntil) return; // менеджер вмешался, пока LLM думала
+    const sent = await waha.sendText(chatId, text);
+    const sentId = sent?.id?._serialized || sent?.key?.id || sent?.id;
+    store.rememberSent(sentId, text);
+    store.pushMsg(chatId, "assistant", text);
+    console.log(`[${chatId}] → ${text.slice(0, 80)}`);
+  } catch (e) {
+    // Клиент не должен потеряться молча: раз в час на чат зовём менеджера
+    console.error(`reply ${chatId}:`, e.message);
+    if (!cfg.llm.mock && Date.now() - (c.lastFailAlert || 0) > 3600000) {
+      c.lastFailAlert = Date.now();
+      store.save();
+      await alert(`⚠️ Бот не смог ответить клиенту +${chatId.replace(/@.*$/, "")} (${String(e.message).slice(0, 120)}). Ответьте вручную.`);
+    }
+  } finally {
+    await waha.stopTyping(chatId);
+  }
+}
+
+app.listen(cfg.port, () =>
+  console.log(
+    `TÖR bot запущен на :${cfg.port} · задержка ${Math.round(cfg.replyDelayMs / 1000)}с · пауза после менеджера ${cfg.humanCooldownMin} мин · LLM ${cfg.llm.mock ? "MOCK" : cfg.llm.model}`
+  )
+);
