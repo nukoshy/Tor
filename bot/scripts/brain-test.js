@@ -3,7 +3,7 @@
 process.env.DATA_DIR = require("path").join(__dirname, "..", ".test-data-brain");
 const fs = require("fs");
 const { _internals } = require("../src/brain");
-const { runTool, daysFromToday, summarizeAvailability } = _internals;
+const { runTool, daysFromToday, summarizeAvailability, sanitizeWhatsApp } = _internals;
 
 let failures = 0;
 function check(name, cond, extra = "") {
@@ -80,6 +80,12 @@ const CHAT = "77009990000@c.us";
   check("имена не просачиваются в сводку", !JSON.stringify(a).includes("Азамат"));
   a = summarizeAvailability([]);
   check("пусто → всё свободно", a.kabinka === "свободны обе" && a.neke_sarayi === "свободен" && a.banket_zal === "свободен");
+
+  console.log("Санитайзер WhatsApp");
+  check("**жирный** → *жирный*", sanitizeWhatsApp("У нас **Неке сарайы** свободен") === "У нас *Неке сарайы* свободен");
+  check("заголовки убраны", sanitizeWhatsApp("## Меню\n- Чай") === "Меню\n- Чай");
+  check("__курсив__ → _курсив_", sanitizeWhatsApp("__важно__") === "_важно_");
+  check("обычный текст не тронут", sanitizeWhatsApp("Итого 800 000 ₸ за 40 гостей") === "Итого 800 000 ₸ за 40 гостей");
 
   fs.rmSync(process.env.DATA_DIR, { recursive: true, force: true });
   console.log(failures ? `\n${failures} провал(ов)` : "\nЛогика бронирования в порядке ✅");
