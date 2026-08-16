@@ -54,6 +54,14 @@ const CHAT = "77009990000@c.us";
   r = await runTool(tc("create_hold", { date: iso(40), hall: "kabinka", guests: 10, client_name: "Тест" }), CHAT, deps);
   check("hold дальше месяца → отказ", r.error === "date_too_far");
 
+  alerts = [];
+  r = await runTool(
+    tc("create_hold", { date: iso(3), time_start: "вечером", hall: "kabinka", guests: 12, client_name: "Динара" }),
+    CHAT,
+    deps
+  );
+  check("кривое время старта → откат на 16:00", r.ok === true && alerts[0].includes("с 16:00"), alerts[0]);
+
   console.log("notify_manager");
   alerts = [];
   r = await runTool(tc("notify_manager", { summary: "Клиент просит поминальный обед днём" }), CHAT, deps);

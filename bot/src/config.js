@@ -20,6 +20,7 @@ module.exports = {
   replyDelayMs: +(process.env.REPLY_DELAY_MS || 150000),
   humanCooldownMin: +(process.env.HUMAN_COOLDOWN_MIN ?? 60),
   alertPhone: process.env.ALERT_PHONE || "77773539587",
+  webhookToken: process.env.WEBHOOK_TOKEN || "",
   llm: {
     baseUrl: (process.env.LLM_BASE_URL || "https://api.deepseek.com/v1").replace(/\/$/, ""),
     apiKey: process.env.LLM_API_KEY || "",

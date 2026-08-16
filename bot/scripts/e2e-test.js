@@ -38,8 +38,9 @@ const mock = http.createServer((req, res) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sendsTo = (chat) => calls.filter((c) => c.path === "/api/sendText" && c.payload.chatId === chat);
 
-async function webhook(payload) {
-  await fetch(`http://localhost:${BOT_PORT}/webhook`, {
+const TOKEN = "testsecret";
+async function webhook(payload, token = TOKEN) {
+  return fetch(`http://localhost:${BOT_PORT}/webhook${token ? `?token=${token}` : ""}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ event: "message.any", session: "default", payload }),
@@ -67,6 +68,7 @@ function check(name, cond, extra = "") {
       DATA_DIR: dataDir,
       LLM_API_KEY: "",
       STT_API_KEY: "",
+      WEBHOOK_TOKEN: TOKEN,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -119,6 +121,13 @@ function check(name, cond, extra = "") {
     await webhook(clientMsg(A, "А меню какое?", "A2"));
     await sleep(DELAY * 2);
     check("бот ответил второй раз", sendsTo(A).length === 2, `got ${sendsTo(A).length}`);
+
+    console.log("6. Вебхук без токена отвергается");
+    const E = "77055556666@c.us";
+    const res = await webhook(clientMsg(E, "Привет, я фальшивый вебхук", "E1"), null);
+    check("HTTP 401", res.status === 401);
+    await sleep(DELAY * 2);
+    check("бот не отреагировал", sendsTo(E).length === 0, `got ${sendsTo(E).length}`);
   } finally {
     bot.kill();
     mock.close();

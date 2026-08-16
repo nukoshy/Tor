@@ -19,6 +19,8 @@ const alert = (text) =>
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.post("/webhook", (req, res) => {
+  // Токен в query (?token=…) — чтобы посторонний, узнавший URL, не мог слать фальшивые события
+  if (cfg.webhookToken && req.query.token !== cfg.webhookToken) return res.status(401).json({ ok: false });
   res.json({ ok: true }); // отвечаем WAHA сразу, обрабатываем асинхронно
   handleEvent(req.body).catch((e) => console.error("webhook error:", e));
 });
@@ -44,7 +46,7 @@ async function handleEvent(ev) {
 // Исходящее с нашего номера: либо эхо бота, либо живой менеджер пишет с телефона
 function onOutgoing(chatId, p) {
   const id = p.id?._serialized || p.id;
-  if (store.isBotEcho(id, p.body)) return;
+  if (store.isBotEcho(id, p.body, chatId)) return;
   const c = store.chat(chatId);
   c.humanUntil = Date.now() + cfg.humanCooldownMin * 60000;
   store.pushMsg(chatId, "assistant", `[менеджер]: ${p.body || "(медиа)"}`);
@@ -62,13 +64,18 @@ async function onClient(chatId, p) {
   const isVoice = p.hasMedia && (/audio|ogg/.test(mimetype) || p.type === "ptt" || p.type === "audio");
 
   if (isVoice) {
-    try {
-      const buf = await waha.downloadMedia(p.media.url);
-      const tr = await transcribe(buf);
-      text = tr ? `[голосовое сообщение]: ${tr}` : "[голосовое сообщение — распознать не удалось, вежливо попроси написать текстом]";
-    } catch (e) {
-      console.error("stt failed:", e.message);
-      text = "[голосовое сообщение — распознать не удалось, вежливо попроси написать текстом]";
+    if (!p.media?.url) {
+      // WAHA Core не отдаёт файлы медиа (нужен Plus) — вежливо просим текст
+      text = "[голосовое сообщение — файл недоступен, вежливо попроси написать текстом]";
+    } else {
+      try {
+        const buf = await waha.downloadMedia(p.media.url);
+        const tr = await transcribe(buf);
+        text = tr ? `[голосовое сообщение]: ${tr}` : "[голосовое сообщение — распознать не удалось, вежливо попроси написать текстом]";
+      } catch (e) {
+        console.error("stt failed:", e.message);
+        text = "[голосовое сообщение — распознать не удалось, вежливо попроси написать текстом]";
+      }
     }
   } else if (p.hasMedia) {
     text = `[клиент прислал файл: ${mimetype || "медиа"}] ${text}`.trim();
@@ -106,7 +113,7 @@ async function reply(chatId) {
     if (Date.now() < c.humanUntil) return; // менеджер вмешался, пока LLM думала
     const sent = await waha.sendText(chatId, text);
     const sentId = sent?.id?._serialized || sent?.key?.id || sent?.id;
-    store.rememberSent(sentId, text);
+    store.rememberSent(sentId, text, chatId);
     store.pushMsg(chatId, "assistant", text);
     console.log(`[${chatId}] → ${text.slice(0, 80)}`);
   } catch (e) {
@@ -119,6 +126,14 @@ async function reply(chatId) {
     }
   } finally {
     await waha.stopTyping(chatId);
+  }
+}
+
+// После рестарта (деплой, сбой) не бросаем клиентов, ждавших ответа
+for (const [chatId, c] of store.allChats()) {
+  const last = c.history[c.history.length - 1];
+  if (last && last.role === "user" && Date.now() - last.ts < 24 * 3600 * 1000 && Date.now() >= c.humanUntil) {
+    scheduleReply(chatId);
   }
 }
 

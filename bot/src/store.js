@@ -33,27 +33,31 @@ function pushMsg(id, role, content) {
   save();
 }
 
-function rememberSent(msgId, text) {
+function rememberSent(msgId, text, chatId) {
   if (msgId) {
     state.sentIds.push(String(msgId));
     if (state.sentIds.length > 500) state.sentIds.splice(0, 100);
   }
   if (text) {
-    state.sentTexts.push({ text, ts: Date.now() });
+    state.sentTexts.push({ chatId, text, ts: Date.now() });
     if (state.sentTexts.length > 100) state.sentTexts.splice(0, 20);
   }
   save();
 }
 
 // Отличаем «эхо» собственных сообщений бота от сообщений живого менеджера с телефона:
-// по id, а если движок WAHA отдал другой формат id — по совпадению текста за последние 3 минуты.
-function isBotEcho(msgId, text) {
+// по id, а если движок WAHA отдал другой формат id — по совпадению текста в том же чате за последние 3 минуты.
+function isBotEcho(msgId, text, chatId) {
   if (msgId && state.sentIds.includes(String(msgId))) return true;
   if (text) {
     const cutoff = Date.now() - 3 * 60 * 1000;
-    return state.sentTexts.some((s) => s.ts > cutoff && s.text === text);
+    return state.sentTexts.some((s) => s.ts > cutoff && s.text === text && (!s.chatId || s.chatId === chatId));
   }
   return false;
 }
 
-module.exports = { chat, pushMsg, rememberSent, isBotEcho, save };
+function allChats() {
+  return Object.entries(state.chats);
+}
+
+module.exports = { chat, pushMsg, rememberSent, isBotEcho, allChats, save };
