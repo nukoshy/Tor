@@ -99,6 +99,9 @@ const CHAT = "77009990000@c.us";
   check("«20 тамызға бронь керек» → kk", detectLang("20 тамызға бронь керек") === "kk");
   check("«Ассалаумагалейкум» → kk", detectLang("Ассалаумагалейкум") === "kk");
   check("латиница/цифры → null", detectLang("ok 123") === null);
+  check("казахский транслит → kk", detectLang("salemetsiz be, toi jasaimyz 80 adam, kansha turady?") === "kk");
+  check("русский транслит → ru", detectLang("privet skolko stoit banket") === "ru");
+  check("«toilet» не срабатывает как toi", detectLang("where is the toilet") === null);
 
   console.log("Санитайзер WhatsApp");
   check("**жирный** → *жирный*", sanitizeWhatsApp("У нас **Неке сарайы** свободен") === "У нас *Неке сарайы* свободен");
