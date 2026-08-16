@@ -8,7 +8,7 @@
   "use strict";
 
   // ----- Config -----
-  var WHATSAPP_PHONE = "77782903334"; // booking number, digits only (incl. country code)
+  var WHATSAPP_PHONE = "77773539587"; // booking number, digits only (incl. country code)
 
   // ----- Data (verbatim from the design source) -----
   // Ordered high → low, matching the original rawPackages().
