@@ -145,6 +145,8 @@ function daysFromToday(dateISO) {
 async function runTool(tc, chatId, deps) {
   const args = JSON.parse(tc.function.arguments || "{}");
   const phone = chatId.replace(/@.*$/, "");
+  // @lid — скрытый идентификатор WhatsApp, это не номер телефона
+  const contact = chatId.endsWith("@lid") ? `WhatsApp-чат ${phone} (скрытый номер)` : `+${phone}`;
   const name = tc.function.name;
 
   if (name === "check_availability" || name === "create_hold") {
@@ -181,7 +183,7 @@ async function runTool(tc, chatId, deps) {
         `${args.client_name}, ${args.guests} гостей, ${args.event_type || "событие"}${
           args.package && args.package !== "не выбран" ? `, пакет ${args.package} ₸` : ""
         }`,
-        `WhatsApp клиента: +${phone}`,
+        `WhatsApp клиента: ${contact}`,
         args.comment ? `Комментарий: ${args.comment}` : "",
       ]
         .filter(Boolean)
@@ -195,7 +197,7 @@ async function runTool(tc, chatId, deps) {
   }
 
   if (name === "notify_manager") {
-    await deps.alert(`❗️ Нужен менеджер\n${args.summary}\nWhatsApp клиента: +${phone}`);
+    await deps.alert(`❗️ Нужен менеджер\n${args.summary}\nWhatsApp клиента: ${contact}`);
     return { ok: true, note: "Скажи клиенту, что передал вопрос менеджеру — ответят в ближайшее время." };
   }
 

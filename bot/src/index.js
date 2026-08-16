@@ -29,7 +29,13 @@ async function handleEvent(ev) {
   if (!ev || !ev.payload || !["message", "message.any"].includes(ev.event)) return;
   const p = ev.payload;
   const chatId = p.fromMe ? p.to : p.from;
-  if (!chatId || !chatId.endsWith("@c.us")) return; // группы, статусы, каналы — не наше
+  // Личные чаты приходят и как @c.us, и как @lid (новая адресация WhatsApp для давних контактов)
+  const isDirect = chatId && (chatId.endsWith("@c.us") || chatId.endsWith("@lid"));
+  if (!isDirect) {
+    if (chatId && !chatId.endsWith("@g.us") && chatId !== "status@broadcast")
+      console.log("пропущен чат неизвестного типа:", chatId);
+    return;
+  }
   const msgId = p.id?._serialized || (typeof p.id === "string" ? p.id : null);
   if (msgId) {
     if (seenIds.has(msgId)) return;
@@ -47,6 +53,8 @@ async function handleEvent(ev) {
 function onOutgoing(chatId, p) {
   const id = p.id?._serialized || p.id;
   if (store.isBotEcho(id, p.body, chatId)) return;
+  // При подключении движок «доигрывает» старые исходящие по всем чатам — это не живой менеджер
+  if (p.timestamp && Date.now() / 1000 - p.timestamp > 120) return;
   const c = store.chat(chatId);
   c.humanUntil = Date.now() + cfg.humanCooldownMin * 60000;
   store.pushMsg(chatId, "assistant", `[менеджер]: ${p.body || "(медиа)"}`);

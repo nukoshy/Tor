@@ -128,6 +128,20 @@ function check(name, cond, extra = "") {
     check("HTTP 401", res.status === 401);
     await sleep(DELAY * 2);
     check("бот не отреагировал", sendsTo(E).length === 0, `got ${sendsTo(E).length}`);
+
+    console.log("7. Чат с @lid-адресацией (давние контакты) обслуживается");
+    const L = "135222851018965@lid";
+    await webhook(clientMsg(L, "Здравствуйте, это старый контакт", "L1"));
+    await sleep(DELAY * 2);
+    check("бот ответил в @lid-чат", sendsTo(L).length === 1, `got ${sendsTo(L).length}`);
+
+    console.log("8. Старое исходящее из синхронизации не глушит бота");
+    const M = "77066667777@c.us";
+    await webhook({ ...outgoingMsg(M, "давнее сообщение менеджера", "M1"), timestamp: Math.floor(Date.now() / 1000) - 3600 });
+    await sleep(100);
+    await webhook(clientMsg(M, "Сәлеметсіз бе!", "M2"));
+    await sleep(DELAY * 2);
+    check("бот ответил несмотря на старое исходящее", sendsTo(M).length === 1, `got ${sendsTo(M).length}`);
   } finally {
     bot.kill();
     mock.close();
