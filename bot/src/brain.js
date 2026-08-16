@@ -237,9 +237,27 @@ async function respond(chatId, history, deps) {
       content: `Последнее сообщение клиента написано на ${lang === "kk" ? "казахском" : "русском"} языке — ответь строго на нём, даже если раньше диалог шёл на другом.`,
     });
   }
-  for (let i = 0; i < 4; i++) {
+  let langRetried = false;
+  for (let i = 0; i < 5; i++) {
     const out = await chatComplete({ messages, tools: TOOLS });
-    if (!out.toolCalls.length) return sanitizeWhatsApp((out.content || "").trim());
+    if (!out.toolCalls.length) {
+      const text = sanitizeWhatsApp((out.content || "").trim());
+      // Страховка кодом: ответ не на языке клиента → один принудительный перевод
+      if (lang && !langRetried && out.raw) {
+        const hasKk = /[әіңғүұқөһ]/.test(text);
+        const wrongLang = (lang === "ru" && hasKk) || (lang === "kk" && !hasKk && /[а-яё]/i.test(text));
+        if (wrongLang) {
+          langRetried = true;
+          messages.push(out.raw);
+          messages.push({
+            role: "system",
+            content: `Ты ответил не на том языке: клиент писал на ${lang === "kk" ? "казахском" : "русском"}. Переведи свой ответ на ${lang === "kk" ? "казахский" : "русский"} и отправь только перевод, без пояснений.`,
+          });
+          continue;
+        }
+      }
+      return text;
+    }
     messages.push(out.raw);
     for (const tc of out.toolCalls) {
       let result;
@@ -255,4 +273,8 @@ async function respond(chatId, history, deps) {
   return "Секунду, уточню у менеджера и вернусь к вам 🙌";
 }
 
-module.exports = { respond, systemPrompt, _internals: { runTool, daysFromToday, summarizeAvailability, sanitizeWhatsApp } };
+module.exports = {
+  respond,
+  systemPrompt,
+  _internals: { runTool, daysFromToday, summarizeAvailability, sanitizeWhatsApp, detectLang },
+};

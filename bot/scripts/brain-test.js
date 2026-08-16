@@ -3,7 +3,7 @@
 process.env.DATA_DIR = require("path").join(__dirname, "..", ".test-data-brain");
 const fs = require("fs");
 const { _internals } = require("../src/brain");
-const { runTool, daysFromToday, summarizeAvailability, sanitizeWhatsApp } = _internals;
+const { runTool, daysFromToday, summarizeAvailability, sanitizeWhatsApp, detectLang } = _internals;
 
 let failures = 0;
 function check(name, cond, extra = "") {
@@ -90,6 +90,15 @@ const CHAT = "77009990000@c.us";
   check("имена не просачиваются в сводку", !JSON.stringify(a).includes("Азамат"));
   a = summarizeAvailability([]);
   check("пусто → всё свободно", a.kabinka === "свободны обе" && a.neke_sarayi === "свободен" && a.banket_zal === "свободен");
+
+  console.log("Определение языка клиента");
+  check("«Здравствуйте» → ru", detectLang("Здравствуйте") === "ru");
+  check("«На 20 число» → ru", detectLang("На 20 число") === "ru");
+  check("«Хотела бронь» → ru", detectLang("Хотела бронь") === "ru");
+  check("«Сәлеметсіз бе» → kk", detectLang("Сәлеметсіз бе") === "kk");
+  check("«20 тамызға бронь керек» → kk", detectLang("20 тамызға бронь керек") === "kk");
+  check("«Ассалаумагалейкум» → kk", detectLang("Ассалаумагалейкум") === "kk");
+  check("латиница/цифры → null", detectLang("ok 123") === null);
 
   console.log("Санитайзер WhatsApp");
   check("**жирный** → *жирный*", sanitizeWhatsApp("У нас **Неке сарайы** свободен") === "У нас *Неке сарайы* свободен");
