@@ -21,6 +21,9 @@ module.exports = {
   humanCooldownMin: +(process.env.HUMAN_COOLDOWN_MIN ?? 60),
   alertPhone: process.env.ALERT_PHONE || "77773539587",
   webhookToken: process.env.WEBHOOK_TOKEN || "",
+  // "greeting" — бот включается в чате только после формального приветствия (пилот на личном номере);
+  // "off" — отвечает на любое входящее (боевой режим на номере ресторана)
+  triggerMode: process.env.TRIGGER_MODE || "off",
   llm: {
     baseUrl: (process.env.LLM_BASE_URL || "https://api.deepseek.com/v1").replace(/\/$/, ""),
     apiKey: process.env.LLM_API_KEY || "",

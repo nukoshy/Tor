@@ -90,13 +90,27 @@ async function onClient(chatId, p) {
   }
 
   if (!text) return;
-  store.pushMsg(chatId, "user", text);
-
   const c = store.chat(chatId);
+
+  // Пилот на личном номере: включаемся только после формального приветствия,
+  // дальше ведём этот чат 24 часа (продлевается каждым сообщением клиента)
+  if (cfg.triggerMode === "greeting") {
+    const engaged = Date.now() < (c.engagedUntil || 0);
+    if (!engaged && !GREETING_RE.test(text)) {
+      store.pushMsg(chatId, "user", text); // копим контекст, но молчим — это личный чат
+      return;
+    }
+    c.engagedUntil = Date.now() + 24 * 3600 * 1000;
+  }
+
+  store.pushMsg(chatId, "user", text);
   if (Date.now() < c.humanUntil) return; // в этом чате сейчас работает человек
 
   scheduleReply(chatId);
 }
+
+const GREETING_RE =
+  /здравствуй|добр(ый|ое|ой)\s*(день|вечер|утро|ночи)|с[аә]леметс[иі]з|ассалау|ассалам|салам\s*[аә]лейкум|қайырлы\s*(таң|күн|кеш)/i;
 
 function scheduleReply(chatId) {
   const old = timers.get(chatId);
@@ -140,6 +154,7 @@ async function reply(chatId) {
 // После рестарта (деплой, сбой) не бросаем клиентов, ждавших ответа
 for (const [chatId, c] of store.allChats()) {
   const last = c.history[c.history.length - 1];
+  if (cfg.triggerMode === "greeting" && Date.now() >= (c.engagedUntil || 0)) continue;
   if (last && last.role === "user" && Date.now() - last.ts < 24 * 3600 * 1000 && Date.now() >= c.humanUntil) {
     scheduleReply(chatId);
   }
@@ -147,6 +162,6 @@ for (const [chatId, c] of store.allChats()) {
 
 app.listen(cfg.port, () =>
   console.log(
-    `TÖR bot запущен на :${cfg.port} · задержка ${Math.round(cfg.replyDelayMs / 1000)}с · пауза после менеджера ${cfg.humanCooldownMin} мин · LLM ${cfg.llm.mock ? "MOCK" : cfg.llm.model}`
+    `TÖR bot запущен на :${cfg.port} · задержка ${Math.round(cfg.replyDelayMs / 1000)}с · пауза после менеджера ${cfg.humanCooldownMin} мин · триггер: ${cfg.triggerMode} · LLM ${cfg.llm.mock ? "MOCK" : cfg.llm.model}`
   )
 );

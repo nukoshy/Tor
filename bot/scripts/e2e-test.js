@@ -75,6 +75,7 @@ function check(name, cond, extra = "") {
   bot.stdout.on("data", (d) => process.env.E2E_VERBOSE && process.stdout.write("[bot] " + d));
   bot.stderr.on("data", (d) => process.stdout.write("[bot err] " + d));
   await sleep(600);
+  let bot2;
 
   try {
     console.log("1. Клиент пишет → бот отвечает после задержки");
@@ -142,8 +143,51 @@ function check(name, cond, extra = "") {
     await webhook(clientMsg(M, "Сәлеметсіз бе!", "M2"));
     await sleep(DELAY * 2);
     check("бот ответил несмотря на старое исходящее", sendsTo(M).length === 1, `got ${sendsTo(M).length}`);
+
+    console.log("9. Режим «по приветствию»: без приветствия — молчание");
+    const dataDir2 = dataDir + "-trigger";
+    fs.rmSync(dataDir2, { recursive: true, force: true });
+    bot2 = spawn(process.execPath, [path.join(__dirname, "..", "src", "index.js")], {
+      env: {
+        ...process.env,
+        PORT: "3996",
+        WAHA_URL: `http://localhost:${MOCK_PORT}`,
+        MOCK_LLM: "1",
+        REPLY_DELAY_MS: String(DELAY),
+        HUMAN_COOLDOWN_MIN: "60",
+        DATA_DIR: dataDir2,
+        LLM_API_KEY: "",
+        STT_API_KEY: "",
+        WEBHOOK_TOKEN: TOKEN,
+        TRIGGER_MODE: "greeting",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    bot2.stderr.on("data", (d) => process.stdout.write("[bot2 err] " + d));
+    await sleep(600);
+    const webhook2 = (payload) =>
+      fetch(`http://localhost:3996/webhook?token=${TOKEN}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "message.any", session: "default", payload }),
+      });
+    const P = "77088880001@c.us";
+    await webhook2(clientMsg(P, "Скинь фотки со вчерашнего", "P1"));
+    await sleep(DELAY * 2);
+    check("личный чат без приветствия игнорируется", sendsTo(P).length === 0, `got ${sendsTo(P).length}`);
+
+    console.log("10. Режим «по приветствию»: приветствие включает чат на сутки");
+    const Q = "77088880002@c.us";
+    await webhook2(clientMsg(Q, "Здравствуйте!", "Q1"));
+    await sleep(DELAY * 2);
+    check("после «Здравствуйте» бот ответил", sendsTo(Q).length === 1, `got ${sendsTo(Q).length}`);
+    await webhook2(clientMsg(Q, "Сколько стоит банкет на 30 человек?", "Q2"));
+    await sleep(DELAY * 2);
+    check("следующее сообщение без приветствия тоже обслужено", sendsTo(Q).length === 2, `got ${sendsTo(Q).length}`);
+    fs.rmSync(dataDir2, { recursive: true, force: true });
   } finally {
     bot.kill();
+    if (bot2) bot2.kill();
     mock.close();
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
