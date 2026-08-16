@@ -62,6 +62,14 @@ const CHAT = "77009990000@c.us";
   );
   check("кривое время старта → откат на 16:00", r.ok === true && alerts[0].includes("с 16:00"), alerts[0]);
 
+  alerts = [];
+  r = await runTool(
+    tc("create_hold", { date: iso(2), time_start: "20:00", hall: "karaoke", guests: 6, client_name: "Диана", event_type: "караоке" }),
+    CHAT,
+    deps
+  );
+  check("караоке-заявка: зал и время в алерте", r.ok === true && alerts[0].includes("Караоке") && alerts[0].includes("с 20:00"), alerts[0]);
+
   console.log("notify_manager");
   alerts = [];
   r = await runTool(tc("notify_manager", { summary: "Клиент просит поминальный обед днём" }), CHAT, deps);
@@ -75,6 +83,8 @@ const CHAT = "77009990000@c.us";
   check("обе кабинки заняты", a.kabinka === "заняты обе");
   check("Неке сарайы занят", a.neke_sarayi === "занят");
   check("банкетный зал свободен", a.banket_zal === "свободен");
+  a = summarizeAvailability([{ summary: "HOLD · Караоке · Диана · 6 гостей" }]);
+  check("караоке-бронь не считается залом и не даёт предупреждения", !a.warning && a.kabinka === "свободны обе" && Boolean(a.karaoke), JSON.stringify(a));
   a = summarizeAvailability([{ summary: "День рождения Азамата" }]);
   check("непонятное событие → предупреждение", Boolean(a.warning));
   check("имена не просачиваются в сводку", !JSON.stringify(a).includes("Азамат"));

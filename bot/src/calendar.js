@@ -66,7 +66,7 @@ async function eventsOn(dateISO) {
   }));
 }
 
-const HALLS = { kabinka: "Кабинка", neke_sarayi: "Неке сарайы", banket_zal: "Банкетный зал" };
+const HALLS = { kabinka: "Кабинка", neke_sarayi: "Неке сарайы", banket_zal: "Банкетный зал", karaoke: "Караоке" };
 const hallName = (k) => HALLS[k] || k || "Зал";
 
 async function createHold(h) {
