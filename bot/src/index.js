@@ -56,6 +56,29 @@ function onOutgoing(chatId, p) {
   // При подключении движок «доигрывает» старые исходящие по всем чатам — это не живой менеджер
   if (p.timestamp && Date.now() / 1000 - p.timestamp > 120) return;
   const c = store.chat(chatId);
+
+  // Команды владельца прямо из чата: «!бот» — вернуть бота сюда, «!стоп» — заглушить на 12 часов
+  const cmd = (p.body || "").trim().toLowerCase();
+  if (cmd === "!бот" || cmd === "!bot") {
+    c.humanUntil = 0;
+    c.engagedUntil = Date.now() + 24 * 3600 * 1000;
+    store.save();
+    const last = c.history[c.history.length - 1];
+    if (last && last.role === "user") scheduleReply(chatId);
+    console.log(`[${chatId}] команда !бот — бот снова в чате`);
+    return;
+  }
+  if (cmd === "!стоп" || cmd === "!stop") {
+    c.humanUntil = Date.now() + 12 * 3600 * 1000;
+    store.save();
+    const t = timers.get(chatId);
+    if (t) {
+      clearTimeout(t);
+      timers.delete(chatId);
+    }
+    console.log(`[${chatId}] команда !стоп — бот молчит 12 часов`);
+    return;
+  }
   c.humanUntil = Date.now() + cfg.humanCooldownMin * 60000;
   store.pushMsg(chatId, "assistant", `[менеджер]: ${p.body || "(медиа)"}`);
   const t = timers.get(chatId);
@@ -153,6 +176,7 @@ async function reply(chatId) {
 
 // После рестарта (деплой, сбой) не бросаем клиентов, ждавших ответа
 for (const [chatId, c] of store.allChats()) {
+  if (cfg.humanCooldownMin === 0 && c.humanUntil) c.humanUntil = 0; // пауза выключена — сбрасываем и накопленные
   const last = c.history[c.history.length - 1];
   if (cfg.triggerMode === "greeting" && Date.now() >= (c.engagedUntil || 0)) continue;
   if (last && last.role === "user" && Date.now() - last.ts < 24 * 3600 * 1000 && Date.now() >= c.humanUntil) {

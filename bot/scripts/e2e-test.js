@@ -144,6 +144,17 @@ function check(name, cond, extra = "") {
     await sleep(DELAY * 2);
     check("бот ответил несмотря на старое исходящее", sendsTo(M).length === 1, `got ${sendsTo(M).length}`);
 
+    console.log("8b. Команда «!бот» возвращает бота в заглушенный чат");
+    const N = "77077778888@c.us";
+    await webhook(outgoingMsg(N, "Я сам отвечу, подожди", "N1"));
+    await sleep(100);
+    await webhook(clientMsg(N, "Здравствуйте! Есть места на завтра?", "N2"));
+    await sleep(DELAY * 1.5);
+    check("после менеджера бот молчит", sendsTo(N).length === 0, `got ${sendsTo(N).length}`);
+    await webhook(outgoingMsg(N, "!бот", "N3"));
+    await sleep(DELAY * 2);
+    check("после «!бот» бот ответил на ждавший вопрос", sendsTo(N).length === 1, `got ${sendsTo(N).length}`);
+
     console.log("9. Режим «по приветствию»: без приветствия — молчание");
     const dataDir2 = dataDir + "-trigger";
     fs.rmSync(dataDir2, { recursive: true, force: true });
