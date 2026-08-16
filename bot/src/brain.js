@@ -214,12 +214,29 @@ async function runTool(tc, chatId, deps) {
   return { error: "unknown_tool" };
 }
 
+// Язык последнего сообщения клиента — кодом, чтобы модель не «уплывала» за историей диалога
+function detectLang(text) {
+  const t = (text || "").toLowerCase();
+  if (/[әіңғүұқөһ]/.test(t)) return "kk";
+  if (/с[аә]леметс|ассалау|салам|қайырлы|рахмет|бар ма|келед[иі]|болад[ыі]|адам|қанша|мәзір/.test(t)) return "kk";
+  if (/[а-яё]/.test(t)) return "ru";
+  return null;
+}
+
 // history: [{role: "user"|"assistant", content}], deps: { alert(text) }
 async function respond(chatId, history, deps) {
   const messages = [
     { role: "system", content: systemPrompt() },
     ...history.map((h) => ({ role: h.role === "user" ? "user" : "assistant", content: h.content })),
   ];
+  const lastUser = [...history].reverse().find((h) => h.role === "user");
+  const lang = detectLang(lastUser?.content);
+  if (lang) {
+    messages.push({
+      role: "system",
+      content: `Последнее сообщение клиента написано на ${lang === "kk" ? "казахском" : "русском"} языке — ответь строго на нём, даже если раньше диалог шёл на другом.`,
+    });
+  }
   for (let i = 0; i < 4; i++) {
     const out = await chatComplete({ messages, tools: TOOLS });
     if (!out.toolCalls.length) return sanitizeWhatsApp((out.content || "").trim());
