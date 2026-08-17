@@ -175,6 +175,24 @@ function check(name, cond, extra = "") {
     await sleep(DELAY * 2);
     check("артефакт не заглушил чат", sendsTo(L3).length === 1, `got ${sendsTo(L3).length}`);
 
+    console.log("8e. Клиентские команды !стоп / !бот");
+    const K1 = "77012340001@c.us";
+    await webhook(clientMsg(K1, "Здравствуйте! Расскажите про залы", "K1a"));
+    await sleep(DELAY * 2);
+    check("бот ответил", sendsTo(K1).length === 1, `got ${sendsTo(K1).length}`);
+    await webhook(clientMsg(K1, "!стоп", "K1b"));
+    await sleep(400);
+    check("подтверждение паузы отправлено сразу", sendsTo(K1).length === 2, `got ${sendsTo(K1).length}`);
+    await webhook(clientMsg(K1, "Есть места на завтра?", "K1c"));
+    await sleep(DELAY * 2);
+    check("на паузе бот молчит", sendsTo(K1).length === 2, `got ${sendsTo(K1).length}`);
+    await webhook(clientMsg(K1, "!бот", "K1d"));
+    await sleep(400);
+    check("подтверждение включения", sendsTo(K1).length === 3, `got ${sendsTo(K1).length}`);
+    await webhook(clientMsg(K1, "Так есть места на завтра?", "K1e"));
+    await sleep(DELAY * 2);
+    check("после !бот бот снова отвечает", sendsTo(K1).length === 4, `got ${sendsTo(K1).length}`);
+
     console.log("9. Режим «по приветствию»: без приветствия — молчание");
     const dataDir2 = dataDir + "-trigger";
     fs.rmSync(dataDir2, { recursive: true, force: true });

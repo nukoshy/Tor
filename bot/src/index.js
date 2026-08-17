@@ -63,6 +63,7 @@ function onOutgoing(chatId, p) {
   const cmd = (p.body || "").trim().toLowerCase();
   if (cmd === "!бот" || cmd === "!bot") {
     c.humanUntil = 0;
+    c.mutedUntil = 0;
     c.engagedUntil = Date.now() + 24 * 3600 * 1000;
     store.save();
     const last = c.history[c.history.length - 1];
@@ -71,7 +72,7 @@ function onOutgoing(chatId, p) {
     return;
   }
   if (cmd === "!стоп" || cmd === "!stop") {
-    c.humanUntil = Date.now() + 12 * 3600 * 1000;
+    c.mutedUntil = Date.now() + 12 * 3600 * 1000; // владелец: пауза 12 часов (переживает рестарты)
     store.save();
     const t = timers.get(chatId);
     if (t) {
@@ -117,6 +118,36 @@ async function onClient(chatId, p) {
   if (!text) return;
   const c = store.chat(chatId);
 
+  // Команды клиента: «!стоп» — выключить бота в этом чате, «!бот» — включить обратно
+  const clientCmd = text.trim().toLowerCase();
+  if (clientCmd === "!бот" || clientCmd === "!bot") {
+    c.mutedUntil = 0;
+    c.humanUntil = 0;
+    if (cfg.triggerMode === "greeting") c.engagedUntil = Date.now() + 24 * 3600 * 1000;
+    store.save();
+    console.log(`[${chatId}] клиент включил бота (!бот)`);
+    return sendDirect(chatId, "Бот снова включён ✅ / Бот қайта қосылды ✅");
+  }
+  if (clientCmd === "!стоп" || clientCmd === "!stop") {
+    if (cfg.triggerMode === "greeting" && Date.now() >= (c.engagedUntil || 0)) return; // личный чат — молчим
+    c.mutedUntil = Date.now() + 365 * 24 * 3600 * 1000; // пауза до команды !бот
+    store.save();
+    const t = timers.get(chatId);
+    if (t) {
+      clearTimeout(t);
+      timers.delete(chatId);
+    }
+    console.log(`[${chatId}] клиент выключил бота (!стоп)`);
+    return sendDirect(
+      chatId,
+      "Хорошо, бот выключен в этом чате — менеджер ответит лично. Включить обратно: !бот\nБот осы чатта өшірілді — менеджер өзі жауап береді. Қайта қосу: !бот"
+    );
+  }
+  if (Date.now() < (c.mutedUntil || 0)) {
+    store.pushMsg(chatId, "user", text); // бот на паузе: копим контекст, не отвечаем
+    return;
+  }
+
   // Пилот на личном номере: включаемся только после формального приветствия,
   // дальше ведём этот чат 24 часа (продлевается каждым сообщением клиента)
   if (cfg.triggerMode === "greeting") {
@@ -149,15 +180,26 @@ function scheduleReply(chatId) {
   );
 }
 
+// Мгновенная отправка без LLM (подтверждения команд)
+async function sendDirect(chatId, text) {
+  try {
+    const sent = await waha.sendText(chatId, text);
+    store.rememberSent(sent?.id?._serialized || sent?.key?.id || sent?.id, text, chatId);
+    store.pushMsg(chatId, "assistant", text);
+  } catch (e) {
+    console.error("sendDirect:", e.message);
+  }
+}
+
 async function reply(chatId) {
   const c = store.chat(chatId);
-  if (Date.now() < c.humanUntil) return; // менеджер успел вмешаться
+  if (Date.now() < c.humanUntil || Date.now() < (c.mutedUntil || 0)) return; // менеджер или пауза
   await waha.sendSeen(chatId);
   await waha.startTyping(chatId);
   try {
     const text = await respond(chatId, c.history, { alert });
     if (!text) return;
-    if (Date.now() < c.humanUntil) return; // менеджер вмешался, пока LLM думала
+    if (Date.now() < c.humanUntil || Date.now() < (c.mutedUntil || 0)) return; // вмешались, пока LLM думала
     const sent = await waha.sendText(chatId, text);
     const sentId = sent?.id?._serialized || sent?.key?.id || sent?.id;
     store.rememberSent(sentId, text, chatId);
@@ -191,6 +233,7 @@ if (purged) {
 // После рестарта (деплой, сбой) не бросаем клиентов, ждавших ответа
 for (const [chatId, c] of store.allChats()) {
   if (cfg.humanCooldownMin === 0 && c.humanUntil) c.humanUntil = 0; // пауза выключена — сбрасываем и накопленные
+  if (Date.now() < (c.mutedUntil || 0)) continue; // чат на явной паузе (!стоп)
   const last = c.history[c.history.length - 1];
   if (cfg.triggerMode === "greeting" && Date.now() >= (c.engagedUntil || 0)) continue;
   if (last && last.role === "user" && Date.now() - last.ts < 24 * 3600 * 1000 && Date.now() >= c.humanUntil) {
