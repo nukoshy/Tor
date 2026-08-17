@@ -28,4 +28,8 @@ module.exports = {
     if (!res.ok) throw new Error(`media download → ${res.status}`);
     return Buffer.from(await res.arrayBuffer());
   },
+  async sessionStatus() {
+    const d = await api(`/api/sessions/${S()}`, null, "GET");
+    return d.status;
+  },
 };

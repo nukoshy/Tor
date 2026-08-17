@@ -62,4 +62,39 @@ function allChats() {
   return Object.entries(state.chats);
 }
 
-module.exports = { chat, pushMsg, rememberSent, isBotEcho, allChats, save };
+// ---- Журнал заявок (переживает рестарты, не зависит от календаря) ----
+function nextHoldNumber() {
+  state.holdSeq = (state.holdSeq || 0) + 1;
+  save();
+  return state.holdSeq;
+}
+
+function addHold(h) {
+  (state.holds ||= []).push(h);
+  if (state.holds.length > 500) state.holds.splice(0, 100);
+  save();
+}
+
+function holds() {
+  return state.holds || [];
+}
+
+function markHoldConfirmed(n) {
+  const h = (state.holds || []).find((x) => x.n === n);
+  if (h) {
+    h.confirmed = true;
+    save();
+  }
+  return h;
+}
+
+// Служебные метки (дата последнего дайджеста, падение сессии и т.п.)
+function meta(key, val) {
+  state.meta ||= {};
+  if (val === undefined) return state.meta[key];
+  state.meta[key] = val;
+  save();
+  return val;
+}
+
+module.exports = { chat, pushMsg, rememberSent, isBotEcho, allChats, save, nextHoldNumber, addHold, holds, markHoldConfirmed, meta };

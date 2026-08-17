@@ -2,6 +2,8 @@
 // Тесты логики бронирования (без LLM и календаря): даты, заявки, эскалация, сводка занятости.
 process.env.DATA_DIR = require("path").join(__dirname, "..", ".test-data-brain");
 const fs = require("fs");
+fs.rmSync(process.env.DATA_DIR, { recursive: true, force: true }); // чистый журнал заявок на каждый прогон
+const store = require("../src/store");
 const { _internals } = require("../src/brain");
 const { runTool, daysFromToday, summarizeAvailability, sanitizeWhatsApp, detectLang } = _internals;
 
@@ -69,6 +71,28 @@ const CHAT = "77009990000@c.us";
     deps
   );
   check("караоке-заявка: зал и время в алерте", r.ok === true && alerts[0].includes("Караоке") && alerts[0].includes("с 20:00"), alerts[0]);
+
+  console.log("Журнал заявок и номера");
+  check("заявкам присвоены номера по порядку", /Заявка #3/.test(alerts[0]), alerts[0]);
+  check("в алерте есть подсказка подтверждения", alerts[0].includes("!ок 3"));
+  check("журнал хранит заявки", store.holds().length === 3, String(store.holds().length));
+  check("!ок подтверждает заявку", store.markHoldConfirmed(3)?.confirmed === true);
+  check("несуществующий номер → undefined", store.markHoldConfirmed(999) === undefined);
+
+  console.log("Скрытый номер (@lid): сначала спросить телефон");
+  alerts = [];
+  const LID = "135222851018965@lid";
+  r = await runTool(tc("create_hold", { date: iso(3), hall: "kabinka", guests: 10, client_name: "Дана" }), LID, deps);
+  check("без client_phone → need_phone", r.error === "need_phone", JSON.stringify(r));
+  check("алерт не отправлен", alerts.length === 0);
+  r = await runTool(
+    tc("create_hold", { date: iso(3), hall: "kabinka", guests: 10, client_name: "Дана", client_phone: "8 707 111 22 33" }),
+    LID,
+    deps
+  );
+  check("с client_phone → ok", r.ok === true, JSON.stringify(r));
+  check("телефон клиента в алерте", (alerts[0] || "").includes("8 707 111 22 33"), alerts[0]);
+  check("hold_number возвращается модели", r.hold_number === 4);
 
   console.log("notify_manager");
   alerts = [];

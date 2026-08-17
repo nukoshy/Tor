@@ -71,7 +71,7 @@ const hallName = (k) => HALLS[k] || k || "Зал";
 
 async function createHold(h) {
   const ev = {
-    summary: `HOLD · ${hallName(h.hall)} · ${h.client_name} · ${h.guests} гостей${
+    summary: `HOLD${h.n ? ` #${h.n}` : ""} · ${hallName(h.hall)} · ${h.client_name} · ${h.guests} гостей${
       h.package && h.package !== "не выбран" ? ` · ${h.package} ₸` : ""
     }`,
     description:

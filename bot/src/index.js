@@ -16,7 +16,9 @@ const seenIds = new Set(); // дедуп: одно сообщение прихо
 const alert = (text) =>
   waha.sendText(`${cfg.alertPhone}@c.us`, text).catch((e) => console.error("alert failed:", e.message));
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/health", (_req, res) =>
+  res.json({ ok: true, waha: store.meta("wahaDownSince") ? "DOWN" : "OK", holds: store.holds().length })
+);
 
 app.post("/webhook", (req, res) => {
   // Токен в query (?token=…) — чтобы посторонний, узнавший URL, не мог слать фальшивые события
@@ -59,8 +61,17 @@ function onOutgoing(chatId, p) {
   if (p.timestamp && Date.now() / 1000 - p.timestamp > 120) return;
   const c = store.chat(chatId);
 
-  // Команды владельца прямо из чата: «!бот» — вернуть бота сюда, «!стоп» — заглушить на 12 часов
+  // Команды владельца прямо из чата: «!бот» — вернуть бота сюда, «!стоп» — заглушить на 12 часов,
+  // «!ок N» — подтвердить заявку #N (снимает напоминания)
   const cmd = (p.body || "").trim().toLowerCase();
+  const okMatch = cmd.match(/^!(?:ок|ok)\s*#?(\d+)$/);
+  if (okMatch) {
+    const num = Number(okMatch[1]);
+    const h = store.markHoldConfirmed(num);
+    console.log(`[${chatId}] команда !ок ${num} → ${h ? "подтверждена" : "не найдена"}`);
+    sendDirect(chatId, h ? `Заявка #${num} подтверждена ✅` : `Заявка #${num} не найдена`);
+    return;
+  }
   if (cmd === "!бот" || cmd === "!bot") {
     c.humanUntil = 0;
     c.mutedUntil = 0;
@@ -240,6 +251,57 @@ for (const [chatId, c] of store.allChats()) {
     scheduleReply(chatId);
   }
 }
+
+// ---- Фоновые задачи: мониторинг сессии, напоминания о заявках, утренний дайджест ----
+const almatyDateOf = (ts) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: cfg.tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ts));
+const almatyHour = () => +new Intl.DateTimeFormat("en-GB", { timeZone: cfg.tz, hour: "2-digit", hour12: false }).format(new Date());
+
+async function backgroundTick() {
+  // 1) Жива ли WhatsApp-сессия
+  try {
+    const st = await waha.sessionStatus();
+    if (st !== "WORKING") throw new Error(`статус ${st}`);
+    const down = store.meta("wahaDownSince");
+    if (down) {
+      store.meta("wahaDownSince", null);
+      await alert(
+        `✅ WhatsApp-сессия восстановлена (не работала с ${new Date(down).toLocaleString("ru-RU", { timeZone: cfg.tz })}). Проверьте пропущенные чаты.`
+      );
+    }
+  } catch (e) {
+    if (!store.meta("wahaDownSince")) store.meta("wahaDownSince", Date.now());
+    console.error("сессия WhatsApp недоступна:", e.message);
+  }
+
+  // 2) Заявка 3 часа без подтверждения → одно напоминание
+  const today = almatyDateOf(Date.now());
+  for (const h of store.holds()) {
+    if (!h.confirmed && !h.reminded && Date.now() - h.ts > 3 * 3600 * 1000 && h.date >= today) {
+      h.reminded = true;
+      store.save();
+      await alert(
+        `⏰ Заявка #${h.n} уже 3 часа ждёт подтверждения:\n${h.hall} · ${h.date} · с ${h.time_start}\n${h.client_name}, ${h.guests} гостей · ${h.contact}\nПодтвердить: !ок ${h.n}`
+      );
+    }
+  }
+
+  // 3) Дайджест в 09:00 по Алматы
+  if (almatyHour() === 9 && store.meta("lastDigest") !== today) {
+    store.meta("lastDigest", today);
+    const y = almatyDateOf(Date.now() - 24 * 3600 * 1000);
+    const yesterdays = store.holds().filter((h) => almatyDateOf(h.ts) === y);
+    const pending = store.holds().filter((h) => !h.confirmed && h.date >= today);
+    if (yesterdays.length || pending.length) {
+      const lines = [`📊 TÖR — сводка за ${y}`, `Новых заявок: ${yesterdays.length}`];
+      for (const h of yesterdays)
+        lines.push(`#${h.n} · ${h.hall} · ${h.date} ${h.time_start} · ${h.client_name} · ${h.guests} чел ${h.confirmed ? "✅" : "⏳"}`);
+      if (pending.length) lines.push(`Ждут подтверждения: ${pending.map((h) => `#${h.n}`).join(", ")} — подтвердить: !ок номер`);
+      await alert(lines.join("\n"));
+    }
+  }
+}
+setInterval(() => backgroundTick().catch((e) => console.error("background:", e.message)), 5 * 60 * 1000);
 
 app.listen(cfg.port, () =>
   console.log(

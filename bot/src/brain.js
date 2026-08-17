@@ -4,6 +4,7 @@ const path = require("path");
 const cfg = require("./config");
 const { chatComplete } = require("./llm");
 const calendar = require("./calendar");
+const store = require("./store");
 
 const K = (f) => {
   try {
@@ -67,6 +68,8 @@ function systemPrompt() {
 5) Когда известны имя + дата + гости + зал — вызови create_hold. Одно мероприятие в зале в день, стандартно с 16:00 до 00:00.
 6) Мероприятие в дневное время (до 16:00) — чаще всего ас: create_hold НЕ вызывай, только notify_manager — дневное время согласует менеджер. Ответ про ас начни с соболезнования (по-казахски «Асыңыз қабыл болсын», по-русски «Примите соболезнования»).
 7) Компания меньше 8 человек («просто поужинать») — объясни, что кабинки от 8 гостей, и предложи уточнить у менеджера, возможен ли вариант: notify_manager, если клиент согласен.
+8) Инструмент вернул need_phone (номер клиента скрыт WhatsApp) — спроси контактный номер телефона для менеджера и вызови create_hold повторно с client_phone.
+9) После успешного create_hold назови клиенту номер заявки (#N из hold_number).
 
 КАРАОКЕ — отдельный сценарий:
 - Запись: узнай дату, время, число человек и имя → create_hold с hall="karaoke" и их временем. Время нужно точное: если клиент сказал расплывчато («вечером», «кешке»), сначала уточни час. Занятость караоке не проверяй — менеджер подтвердит слот.
@@ -113,6 +116,7 @@ const TOOLS = [
           client_name: { type: "string" },
           event_type: { type: "string", description: "той, юбилей, ас, корпоратив и т.п." },
           package: { type: "string", enum: ["15000", "20000", "25000", "не выбран"] },
+          client_phone: { type: "string", description: "Контактный номер клиента для менеджера — обязателен, если инструмент сообщил, что номер чата скрыт (need_phone)" },
           comment: { type: "string" },
         },
         required: ["date", "hall", "guests", "client_name"],
@@ -201,29 +205,54 @@ async function runTool(tc, chatId, deps) {
 
   if (name === "create_hold") {
     if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(args.time_start || "")) delete args.time_start; // кривое время → 16:00
-    const hold = { ...args, phone };
+    // @lid-чаты скрывают номер клиента — менеджеру не с чем перезванивать
+    if (chatId.endsWith("@lid") && !(args.client_phone || "").trim())
+      return {
+        error: "need_phone",
+        note: "Номер этого клиента скрыт WhatsApp. Спроси контактный номер телефона для менеджера и вызови create_hold ещё раз, добавив client_phone.",
+      };
+    const n = store.nextHoldNumber();
+    const hold = { ...args, phone, n };
     let saved = false;
     if (calendar.configured()) {
       await calendar.createHold(hold);
       saved = true;
     }
+    store.addHold({
+      n,
+      ts: Date.now(),
+      chatId,
+      contact: (args.client_phone || "").trim() || contact,
+      date: args.date,
+      time_start: args.time_start || "16:00",
+      hall: calendar.hallName(args.hall),
+      guests: args.guests,
+      client_name: args.client_name,
+      event_type: args.event_type || "",
+      package: args.package && args.package !== "не выбран" ? args.package : "",
+      saved_to_calendar: saved,
+      confirmed: false,
+      reminded: false,
+    });
     await deps.alert(
       [
-        `🆕 Заявка из бота${saved ? " (записана в календарь)" : " (календарь не подключён!)"}`,
+        `🆕 Заявка #${n}${saved ? " (в календаре)" : " (календарь не подключён!)"}`,
         `${calendar.hallName(args.hall)} · ${args.date} · с ${args.time_start || "16:00"}`,
         `${args.client_name}, ${args.guests} гостей, ${args.event_type || "событие"}${
           args.package && args.package !== "не выбран" ? `, пакет ${args.package} ₸` : ""
         }`,
-        `WhatsApp клиента: ${contact}`,
+        args.client_phone ? `Телефон клиента: ${args.client_phone}` : `WhatsApp клиента: ${contact}`,
         args.comment ? `Комментарий: ${args.comment}` : "",
+        `Подтвердить: !ок ${n}`,
       ]
         .filter(Boolean)
         .join("\n")
     );
     return {
       ok: true,
+      hold_number: n,
       saved_to_calendar: saved,
-      note: "Скажи клиенту: заявка принята, менеджер свяжется и подтвердит бронь. Ничего окончательно не подтверждай сам.",
+      note: `Скажи клиенту: заявка #${n} принята (назови номер), менеджер свяжется и подтвердит бронь. Ничего окончательно не подтверждай сам.`,
     };
   }
 
