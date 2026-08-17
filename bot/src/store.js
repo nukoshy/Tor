@@ -46,12 +46,14 @@ function rememberSent(msgId, text, chatId) {
 }
 
 // Отличаем «эхо» собственных сообщений бота от сообщений живого менеджера с телефона:
-// по id, а если движок WAHA отдал другой формат id — по совпадению текста в том же чате за последние 3 минуты.
-function isBotEcho(msgId, text, chatId) {
+// по id, а если движок отдал другой формат id — по совпадению текста за последние 3 минуты.
+// ВАЖНО: текст сверяем по всем чатам сразу — WhatsApp может прислать эхо под другим
+// идентификатором того же чата (@lid ↔ @c.us), и сверка «только в этом чате» его пропускала.
+function isBotEcho(msgId, text) {
   if (msgId && state.sentIds.includes(String(msgId))) return true;
   if (text) {
     const cutoff = Date.now() - 3 * 60 * 1000;
-    return state.sentTexts.some((s) => s.ts > cutoff && s.text === text && (!s.chatId || s.chatId === chatId));
+    return state.sentTexts.some((s) => s.ts > cutoff && s.text === text);
   }
   return false;
 }

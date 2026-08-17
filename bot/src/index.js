@@ -52,7 +52,9 @@ async function handleEvent(ev) {
 // Исходящее с нашего номера: либо эхо бота, либо живой менеджер пишет с телефона
 function onOutgoing(chatId, p) {
   const id = p.id?._serialized || p.id;
-  if (store.isBotEcho(id, p.body, chatId)) return;
+  if (store.isBotEcho(id, p.body)) return;
+  // Служебная пометка истории в тексте исходящего = наш же артефакт, а не менеджер
+  if (/\[менеджер\]:/i.test(p.body || "")) return;
   // При подключении движок «доигрывает» старые исходящие по всем чатам — это не живой менеджер
   if (p.timestamp && Date.now() / 1000 - p.timestamp > 120) return;
   const c = store.chat(chatId);
@@ -172,6 +174,18 @@ async function reply(chatId) {
   } finally {
     await waha.stopTyping(chatId);
   }
+}
+
+// Разовая чистка последствий петли эха: убираем из историй мусор вида «[менеджер]: [менеджер]: …»
+let purged = 0;
+for (const [, c] of store.allChats()) {
+  const before = c.history.length;
+  c.history = c.history.filter((h) => !/(\[менеджер\]:\s*){2,}/i.test(h.content || ""));
+  purged += before - c.history.length;
+}
+if (purged) {
+  store.save();
+  console.log(`чистка историй: удалено ${purged} заражённых записей`);
 }
 
 // После рестарта (деплой, сбой) не бросаем клиентов, ждавших ответа

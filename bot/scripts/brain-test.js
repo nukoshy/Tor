@@ -119,6 +119,8 @@ const CHAT = "77009990000@c.us";
   check("заголовки убраны", sanitizeWhatsApp("## Меню\n- Чай") === "Меню\n- Чай");
   check("__курсив__ → _курсив_", sanitizeWhatsApp("__важно__") === "_важно_");
   check("обычный текст не тронут", sanitizeWhatsApp("Итого 800 000 ₸ за 40 гостей") === "Итого 800 000 ₸ за 40 гостей");
+  check("«[менеджер]:» вычищается из ответа", sanitizeWhatsApp("[менеджер]: [менеджер]: 20 августа") === "20 августа");
+  check("«[менеджер]:» в середине тоже", sanitizeWhatsApp("Хорошо. [менеджер]: до связи") === "Хорошо. до связи");
 
   fs.rmSync(process.env.DATA_DIR, { recursive: true, force: true });
   console.log(failures ? `\n${failures} провал(ов)` : "\nЛогика бронирования в порядке ✅");

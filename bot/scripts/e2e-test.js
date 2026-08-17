@@ -155,6 +155,26 @@ function check(name, cond, extra = "") {
     await sleep(DELAY * 2);
     check("после «!бот» бот ответил на ждавший вопрос", sendsTo(N).length === 1, `got ${sendsTo(N).length}`);
 
+    console.log("8c. Эхо под другим id чата (lid↔c.us) не считается менеджером");
+    const L2 = "135999000111@lid";
+    await webhook(clientMsg(L2, "Здравствуйте! Караоке есть?", "L2a"));
+    await sleep(DELAY * 2);
+    check("бот ответил в lid-чат", sendsTo(L2).length === 1, `got ${sendsTo(L2).length}`);
+    const aliasChat = "77099990000@c.us";
+    await webhook(outgoingMsg(aliasChat, sendsTo(L2)[0].payload.text, "ECHO_ALIAS"));
+    await sleep(100);
+    await webhook(clientMsg(aliasChat, "Сколько стоит банкет на 20 гостей?", "AL1"));
+    await sleep(DELAY * 2);
+    check("алиас-эхо не заглушило чат", sendsTo(aliasChat).length === 1, `got ${sendsTo(aliasChat).length}`);
+
+    console.log("8d. Исходящее с «[менеджер]:» в тексте — артефакт, не менеджер");
+    const L3 = "77098765432@c.us";
+    await webhook(outgoingMsg(L3, "[менеджер]: [менеджер]: 20 августа", "ART1"));
+    await sleep(100);
+    await webhook(clientMsg(L3, "Здравствуйте, есть места на завтра?", "L3a"));
+    await sleep(DELAY * 2);
+    check("артефакт не заглушил чат", sendsTo(L3).length === 1, `got ${sendsTo(L3).length}`);
+
     console.log("9. Режим «по приветствию»: без приветствия — молчание");
     const dataDir2 = dataDir + "-trigger";
     fs.rmSync(dataDir2, { recursive: true, force: true });
